@@ -53,10 +53,30 @@ function interface_OpeningFcn(hObject, eventdata, handles, varargin)
 % varargin   command line arguments to interface (see VARARGIN)
 
 % Choose default command line output for interface
-handles.output = hObject;
+handles.output = hObject;   
+
 
 % Update handles structure
 guidata(hObject, handles);
+
+
+axes(handles.axesLeft);
+cla;
+plot(0);
+set(handles.axesLeft,'YTick',[]);
+set(handles.axesLeft,'XTick',[]);
+set(handles.axesLeft,'title','Left');
+
+axes(handles.axesRight);
+cla;
+plot(0);
+set(handles.axesRight,'YTick',[]);
+set(handles.axesRight,'XTick',[]);
+
+
+
+
+
 
 % UIWAIT makes interface wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
@@ -90,7 +110,7 @@ function btnLoad_Callback(hObject, eventdata, handles)
         %Get audio information
         [data,fs,bits] = wavread(file);
 
-        %message for retroalimentation
+        %message for load file
         msg = sprintf('*Fichero %s cargado con exito\n* Bits: %i bits\n*Frecuencia: %i Hz\n', file,bits,fs);
         set(handles.txtResult,'String',msg);
         
@@ -109,8 +129,7 @@ function btnLoad_Callback(hObject, eventdata, handles)
         set(handles.btnZoomIn,'Enable','on');
         set(handles.btnZoomOut,'Enable','on');
         set(handles.btnEffect1,'Enable','on');
-        set(handles.btnEffect2,'Enable','on');
-        
+        set(handles.btnEffect2,'Enable','on');        
     end
 
 
@@ -139,6 +158,15 @@ function btnZoomIn_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
+    %message for zoom in
+    msg = sprintf('*zoom in applied \n');
+    set(handles.txtResult,'String',msg);
+    
+    axes(handles.axesRight);
+    zoom on;
+    axes(handles.axesLeft);
+    zoom on;
+
 
 % --- Executes on button press in btnZoomOut.
 function btnZoomOut_Callback(hObject, eventdata, handles)
@@ -146,20 +174,42 @@ function btnZoomOut_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
+    %message for zoom out
+    msg = sprintf('*zoom out applied \n');
+    set(handles.txtResult,'String',msg);
+
+    axes(handles.axesRight);
+    zoom out;
+    axes(handles.axesLeft);
+    zoom out;
+    
 
 % --- Executes on button press in btnEffect1.
 function btnEffect1_Callback(hObject, eventdata, handles)
 % hObject    handle to btnEffect1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
+	echoEffect();
+    
+    %message for echo effect
+    msg = sprintf('*echo effect applied \n');
+    set(handles.txtResult,'String',msg);
+    
+    UpdateAxis(handles);
 
 % --- Executes on button press in btnEffect2.
 function btnEffect2_Callback(hObject, eventdata, handles)
 % hObject    handle to btnEffect2 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
+    voiceOutFilter();
+        
+    %message for voice remove effect
+    msg = sprintf('*voice remove effect applied \n');
+    set(handles.txtResult,'String',msg);
+    
+    UpdateAxis(handles);
+    
 
 % --- Executes during object creation, after setting all properties.
 function txtResult_CreateFcn(hObject, eventdata, handles)
@@ -174,8 +224,8 @@ function btnZoomOut_ButtonDownFcn(hObject, eventdata, handles)
 % hObject    handle to btnZoomOut (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
-
+         
+         
 % --- If Enable == 'on', executes on mouse press in 5 pixel border.
 % --- Otherwise, executes on mouse press in 5 pixel border or over btnZoomIn.
 function btnZoomIn_ButtonDownFcn(hObject, eventdata, handles)
@@ -183,9 +233,9 @@ function btnZoomIn_ButtonDownFcn(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
+
 function UpdateAxis(handles)
     global processedData;
-    global numData;
     
 
     %Plot audio
@@ -202,4 +252,42 @@ function UpdateAxis(handles)
     set(handles.axesRight,'XTick',[]);
     
 
+function echoEffect()
+    global processedData;
+    delay = 10000;
+    decay = 0.5;
+    
+    [m n]= size(processedData);
+    data = zeros(m+delay,n);  
+    
+    %For each channel
+    for c=1:n
+        %Create new array to store process
+        
+        %Copy firts samples
+        for i=1:delay + 1
+            data(i,c) = processedData(i,c);
+        end
+    
+        %Make echo
+        for i=delay+1:m
+            data(i,c) = processedData(i,c) + decay*processedData(i-delay,c);
+        end
+        
+    end
 
+    processedData = data
+    
+ function voiceOutFilter()
+    global numChannels;
+    global processedData;
+     
+    if (numChannels > 0)
+        [m n]= size(processedData);
+        %For each channel
+        for i=1:m
+            processedData(i,1) = processedData(i,1) - processedData(i,2);
+            processedData(i,2) = processedData(i,1);
+        end
+    end
+    
